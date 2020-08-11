@@ -2,6 +2,7 @@ package restapi
 
 import (
 	"crypto/tls"
+	"log"
 	"net/http"
 	"time"
 
@@ -50,6 +51,8 @@ var info = `{
 }
 `
 
+var timeSinceLanding time.Time
+
 func configureFlags(api *operations.DeathstarAPI) {
 	// api.CommandLineOptionsGroups = []swag.CommandLineOptionsGroup{ ... }
 }
@@ -72,13 +75,20 @@ func configureAPI(api *operations.DeathstarAPI) http.Handler {
 		return operations.NewGetOK().WithPayload(info)
 	})
 	api.PutExhaustPortHandler = operations.PutExhaustPortHandlerFunc(func(params operations.PutExhaustPortParams) middleware.Responder {
-		go func() {
-			time.Sleep(2 * time.Second)
-			panic("deathstar exploded")
-		}()
-		return operations.NewPutExhaustPortServiceUnavailable().WithPayload(backtrace)
+		payload := backtrace
+		if time.Since(timeSinceLanding) > 5*time.Second {
+			payload = "Not this time, Jedi!\n"
+		} else {
+			go func() {
+				log.Printf("Gah, the Empire will strike back!")
+				time.Sleep(2 * time.Second)
+				panic("deathstar exploded")
+			}()
+		}
+		return operations.NewPutExhaustPortServiceUnavailable().WithPayload(payload)
 	})
 	api.PostRequestLandingHandler = operations.PostRequestLandingHandlerFunc(func(params operations.PostRequestLandingParams) middleware.Responder {
+		timeSinceLanding = time.Now()
 		return operations.NewPostRequestLandingOK().WithPayload("Ship landed\n")
 	})
 
